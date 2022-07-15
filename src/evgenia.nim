@@ -34,12 +34,18 @@ proc heartbeat(fd: AsyncFd): bool =
   return false
 
 proc serve() {.async.} =
-  clients = @[]
   var server = newAsyncSocket(buffered=false)
   server.bindAddr(Port(25565))
   server.listen()
   
   addTimer(45000, false, heartbeat)
+
+  let ping = proc (fd: AsyncFd): bool {.closure.} =
+    for client in clients:
+      asyncCheck SPingPacket().send(client)
+      return false
+      
+  addTimer(5000, false, ping)
 
   while true:
     let client = await server.accept()

@@ -4,15 +4,16 @@ import asyncnet, asyncdispatch
 type
   AnyPacket* = object
     id*: uint8
-  CIdentificationPacket* = object
-    protocol*: uint8
-    username*: string
-    verification*: string
-  SIdentificationPacket* = object
-    protocol*: uint8
-    server_name*: string
-    motd*: string
-    user_type*: uint8
+  CIdentificationPacket = object
+    protocol: uint8
+    username: string
+    verification: string
+  SIdentificationPacket = object
+    protocol: uint8
+    server_name: string
+    motd: string
+    user_type: uint8
+  SPingPacket* = object
 
 proc writeStr(stream: StringStream, str: string, length: int) =
   let l = len(str)
@@ -26,13 +27,13 @@ proc writeStr(stream: StringStream, str: string, length: int) =
 
   stream.write(res)
 
-proc read*(packet: var CIdentificationPacket, stream: StringStream) =
+proc read(packet: var CIdentificationPacket, stream: StringStream) =
   packet.protocol = stream.peekUint8()
 
   packet.username = stream.peekStr(64)
   packet.verification = stream.peekStr(64)
 
-proc send*(packet: SIdentificationPacket, stream: StringStream, client: AsyncSocket) {.async.} =
+proc send(packet: SIdentificationPacket, stream: StringStream, client: AsyncSocket) {.async.} =
   stream.write(cast[uint8](0))
   stream.write(packet.protocol)
 
@@ -45,6 +46,14 @@ proc send*(packet: SIdentificationPacket, stream: StringStream, client: AsyncSoc
   echo stream.readAll()
   await client.send(stream.readAll())
 
+proc send*(packet: SPingPacket, client: AsyncSocket) {.async.} =
+  let stream = newStringStream()
+
+  stream.write(cast[uint8](1))
+  stream.setPosition(0)
+  
+  await client.send(stream.readAll())
+
 proc proccess*(pkt: AnyPacket, stream: StringStream, client: AsyncSocket) =
   case pkt.id
     of 0x00:
@@ -53,6 +62,8 @@ proc proccess*(pkt: AnyPacket, stream: StringStream, client: AsyncSocket) =
 
       let response = SIdentificationPacket(protocol: 0, server_name: "Shit", motd: "Cum", user_type: 0)
       asyncCheck response.send(stream, client)
+
+      asyncCheck SPingPacket().send(client)
 
       echo 0x00, " processed", packet.username
     else:
