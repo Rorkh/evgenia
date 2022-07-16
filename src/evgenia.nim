@@ -2,6 +2,7 @@ import asyncnet, asyncdispatch
 import strutils, streams
 
 import packet
+import evgenia/stream
 
 var clients {.threadvar.}: seq[AsyncSocket]
 
@@ -12,7 +13,7 @@ proc processClient(client: AsyncSocket) {.async.} =
     if data != "":
       let stream = newStringStream(data)
 
-      let packet = AnyPacket(id: stream.peekUint8())
+      let packet = AnyPacket(id: stream.readByte())
       packet.proccess(stream, client)
     else:
       client.close()
