@@ -1,4 +1,6 @@
+import evgenia/stream
 import streams
+
 import asyncnet, asyncdispatch
 
 type
@@ -15,32 +17,20 @@ type
     user_type: uint8
   SPingPacket* = object
 
-proc writeStr(stream: StringStream, str: string, length: int) =
-  let l = len(str)
-  var res = ""
-
-  for i in 0..length:
-    if i < l:
-      res = res & str[i]
-    else:
-      res = res & ""
-
-  stream.write(res)
-
 proc read(packet: var CIdentificationPacket, stream: StringStream) =
-  packet.protocol = stream.peekUint8()
+  packet.protocol = stream.readByte()
 
-  packet.username = stream.peekStr(64)
-  packet.verification = stream.peekStr(64)
+  packet.username = stream.readString()
+  packet.verification = stream.readString()
 
 proc send(packet: SIdentificationPacket, stream: StringStream, client: AsyncSocket) {.async.} =
-  stream.write(cast[uint8](0))
-  stream.write(packet.protocol)
+  stream.writeByte(0)
+  stream.writeByte(packet.protocol)
 
-  stream.writeStr(packet.server_name, 64)
-  stream.writeStr(packet.motd, 64)
+  stream.writeString(packet.server_name)
+  stream.writeString(packet.motd)
 
-  stream.write(cast[uint8](packet.user_type))
+  stream.writeByte(packet.user_type)
   stream.setPosition(0)
 
   echo stream.readAll()
@@ -49,7 +39,7 @@ proc send(packet: SIdentificationPacket, stream: StringStream, client: AsyncSock
 proc send*(packet: SPingPacket, client: AsyncSocket) {.async.} =
   let stream = newStringStream()
 
-  stream.write(cast[uint8](1))
+  stream.writeByte(1)
   stream.setPosition(0)
   
   await client.send(stream.readAll())
